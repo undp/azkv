@@ -246,174 +246,180 @@ class Secrets(Controller):
             for vault in vault_list:
                 secret = self._get_secret(vault, secret_name)
 
-                if secret is not None:
+                if secret:
                     break
 
-            if base64_decode:
-                self.app.log.info("Base64-decoding secret '{}'".format(secret_name))
+            if secret:
+                if base64_decode:
+                    self.app.log.info("Base64-decoding secret '{}'".format(secret_name))
 
-                try:
-                    secret_output = standard_b64decode(secret.value)
+                    try:
+                        secret_output = standard_b64decode(secret.value)
 
-                except BinAsciiError as e:
-                    self.app.log.error("Base64 decoding error: {}".format(str(e)))
+                    except BinAsciiError as e:
+                        self.app.log.error("Base64 decoding error: {}".format(str(e)))
 
-                    secret_output = secret.value.encode()
-            else:
-                secret_output = secret.value.encode()
+                        secret_output = secret.value.encode()
 
-            self.app.log.info(
-                "Saving secret '{}' to temporary file '{}'".format(
-                    secret_name, file_path_secret_tmp
-                )
-            )
-            with open(file_path_secret_tmp, "wb") as f:
-                f.write(secret_output)
-
-            file_path_secret_tmp.chmod(0o600)
-
-            if not file_path_secret.exists():
-                self.app.log.info(
-                    "Target file '{}' does not exist, renaming '{}' as target".format(
-                        file_path_secret, file_path_secret_tmp
-                    )
-                )
-                file_path_secret_tmp.rename(file_path_secret.name)
-
-                file_secret_updated = True
-
-            else:
-                self.app.log.info(
-                    "Target file '{}' exists, checking against '{}'".format(
-                        file_path_secret, file_path_secret_tmp
-                    )
-                )
-
-                hash_tmp = sha256(secret_output)
-                self.app.log.info(
-                    "Temporary file '{}' digest: '{}:{}'".format(
-                        file_path_secret_tmp, hash_tmp.name, hash_tmp.hexdigest()
-                    )
-                )
-
-                hash_target = sha256()
-                with open(file_path_secret, "rb") as f:
-                    hash_target.update(f.read())
-                self.app.log.info(
-                    "Target file '{}' digest: '{}:{}'".format(
-                        file_path_secret, hash_target.name, hash_target.hexdigest()
-                    )
-                )
-
-                if hash_target.digest() == hash_tmp.digest():
-                    self.app.log.info(
-                        "Target and temporary files are identical, stop processing"
-                    )
-                    self.app.log.info(
-                        "Removing temporary file '{}'".format(file_path_secret_tmp)
-                    )
-
-                    file_path_secret_tmp.unlink()
-
-                    file_secret_updated = False
                 else:
-                    self.app.log.info(
-                        "Target and temporary files are different, continue processing"
+                    secret_output = secret.value.encode()
+
+                self.app.log.info(
+                    "Saving secret '{}' to temporary file '{}'".format(
+                        secret_name, file_path_secret_tmp
                     )
+                )
+                with open(file_path_secret_tmp, "wb") as f:
+                    f.write(secret_output)
+
+                file_path_secret_tmp.chmod(0o600)
+
+                if not file_path_secret.exists():
                     self.app.log.info(
-                        "Renaming temporary file '{}' as target file '{}'".format(
-                            file_path_secret_tmp, file_path_secret
+                        "Target file '{}' does not exist, renaming '{}' as target".format(  # noqa: E501
+                            file_path_secret, file_path_secret_tmp
                         )
                     )
                     file_path_secret_tmp.rename(file_path_secret.name)
 
                     file_secret_updated = True
 
-            if file_secret_updated:
-                if convert_action == "pfx-split-pem":
-                    private_key: RSAPrivateKey
-                    certificate: Certificate
-                    additional_certificates: List[Certificate]
-
-                    file_path_key_pem: Path = file_path_secret.with_name(
-                        "{}_key".format(file_path_secret.stem)
-                    ).with_suffix(".pem")
-
-                    file_path_cert_pem: Path = file_path_secret.with_name(
-                        "{}_cert".format(file_path_secret.stem)
-                    ).with_suffix(".pem")
-
+                else:
                     self.app.log.info(
-                        "Applying '{}' conversion to secret '{}'".format(
-                            convert_action, secret_name
+                        "Target file '{}' exists, checking against '{}'".format(
+                            file_path_secret, file_path_secret_tmp
                         )
                     )
-                    try:
-                        (
-                            private_key,
-                            certificate,
-                            additional_certificates,
-                        ) = pkcs12.load_key_and_certificates(
-                            secret_output, pfx_password, default_backend()
+
+                    hash_tmp = sha256(secret_output)
+                    self.app.log.info(
+                        "Temporary file '{}' digest: '{}:{}'".format(
+                            file_path_secret_tmp, hash_tmp.name, hash_tmp.hexdigest()
+                        )
+                    )
+
+                    hash_target = sha256()
+                    with open(file_path_secret, "rb") as f:
+                        hash_target.update(f.read())
+                    self.app.log.info(
+                        "Target file '{}' digest: '{}:{}'".format(
+                            file_path_secret, hash_target.name, hash_target.hexdigest()
+                        )
+                    )
+
+                    if hash_target.digest() == hash_tmp.digest():
+                        self.app.log.info(
+                            "Target and temporary files are identical, stop processing"
+                        )
+                        self.app.log.info(
+                            "Removing temporary file '{}'".format(file_path_secret_tmp)
                         )
 
-                    except ValueError as e:
-                        self.app.log.error("ValueError: {}".format(str(e)))
+                        file_path_secret_tmp.unlink()
+
+                        file_secret_updated = False
 
                     else:
                         self.app.log.info(
-                            "Saving private key from '{}' as PEM to '{}'".format(
-                                secret_name, file_path_key_pem
+                            "Target and temporary files are different, continue processing"  # noqa: E501
+                        )
+                        self.app.log.info(
+                            "Renaming temporary file '{}' as target file '{}'".format(
+                                file_path_secret_tmp, file_path_secret
                             )
                         )
-                        private_key_pem = private_key.private_bytes(
-                            encoding=serialization.Encoding.PEM,
-                            format=serialization.PrivateFormat.PKCS8,
-                            encryption_algorithm=serialization.NoEncryption(),
-                        )
-                        with open(file_path_key_pem, "wb") as f:
-                            f.write(private_key_pem)
+                        file_path_secret_tmp.rename(file_path_secret.name)
 
-                        file_path_key_pem.chmod(0o600)
+                        file_secret_updated = True
+
+                if file_secret_updated:
+                    if convert_action == "pfx-split-pem":
+                        private_key: RSAPrivateKey
+                        certificate: Certificate
+                        additional_certificates: List[Certificate]
+
+                        file_path_key_pem: Path = file_path_secret.with_name(
+                            "{}_key".format(file_path_secret.stem)
+                        ).with_suffix(".pem")
+
+                        file_path_cert_pem: Path = file_path_secret.with_name(
+                            "{}_cert".format(file_path_secret.stem)
+                        ).with_suffix(".pem")
 
                         self.app.log.info(
-                            "Saving certificate from '{}' as PEM to '{}'".format(
-                                secret_name, file_path_cert_pem
+                            "Applying '{}' conversion to secret '{}'".format(
+                                convert_action, secret_name
                             )
                         )
-                        certificate_pem = certificate.public_bytes(
-                            encoding=serialization.Encoding.PEM
-                        )
-                        with open(file_path_cert_pem, "wb") as f:
-                            f.write(certificate_pem)
+                        try:
+                            (
+                                private_key,
+                                certificate,
+                                additional_certificates,
+                            ) = pkcs12.load_key_and_certificates(
+                                secret_output, pfx_password, default_backend()
+                            )
 
-                        file_path_cert_pem.chmod(0o600)
+                        except ValueError as e:
+                            self.app.log.error("ValueError: {}".format(str(e)))
 
-                if post_hook is not None:
-                    self.app.log.info(
-                        "Executing post-hook shell command '{}'".format(post_hook)
-                    )
-                    stdout, stderr, exitcode = shell.cmd(post_hook)
-                    if exitcode == 0:
+                        else:
+                            self.app.log.info(
+                                "Saving private key from '{}' as PEM to '{}'".format(
+                                    secret_name, file_path_key_pem
+                                )
+                            )
+                            private_key_pem = private_key.private_bytes(
+                                encoding=serialization.Encoding.PEM,
+                                format=serialization.PrivateFormat.PKCS8,
+                                encryption_algorithm=serialization.NoEncryption(),
+                            )
+                            with open(file_path_key_pem, "wb") as f:
+                                f.write(private_key_pem)
+
+                            file_path_key_pem.chmod(0o600)
+
+                            self.app.log.info(
+                                "Saving certificate from '{}' as PEM to '{}'".format(
+                                    secret_name, file_path_cert_pem
+                                )
+                            )
+                            certificate_pem = certificate.public_bytes(
+                                encoding=serialization.Encoding.PEM
+                            )
+                            with open(file_path_cert_pem, "wb") as f:
+                                f.write(certificate_pem)
+
+                            file_path_cert_pem.chmod(0o600)
+
+                    if post_hook:
                         self.app.log.info(
-                            "Post-hook shell command executed successfully"
+                            "Executing post-hook shell command '{}'".format(post_hook)
                         )
-                    else:
-                        self.app.log.error(
-                            "Post-hook shell command exited with code '{}'".format(
-                                exitcode
+                        stdout, stderr, exitcode = shell.cmd(post_hook)
+
+                        if exitcode == 0:
+                            self.app.log.info(
+                                "Post-hook shell command executed successfully"
+                            )
+
+                        else:
+                            self.app.log.error(
+                                "Post-hook shell command exited with code '{}'".format(
+                                    exitcode
+                                )
+                            )
+                            self.app.log.error(
+                                "Post-hook shell command error message '{}'".format(
+                                    stderr.decode().rstrip()
+                                )
+                            )
+
+                        self.app.log.info(
+                            "Post-hook shell command output '{}'".format(
+                                stdout.decode().rstrip()
                             )
                         )
-                        self.app.log.error(
-                            "Post-hook shell command error message '{}'".format(
-                                stderr.decode().rstrip()
-                            )
-                        )
-                    self.app.log.info(
-                        "Post-hook shell command output '{}'".format(
-                            stdout.decode().rstrip()
-                        )
-                    )
 
     @ex(
         help="search secret in all available Azure Key Vaults",
