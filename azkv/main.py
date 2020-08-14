@@ -6,12 +6,13 @@ from .controllers.base import Base
 from .controllers.keyvaults import Keyvaults
 from .controllers.secrets import Secrets
 from .core.exc import AzKVError
+from .core.hooks import extend_vault_creds
 from .core.log import AzKVLogHandler
 
 # configuration defaults
 CONFIG = init_defaults("azkv", "azkv.credentials", "azkv.keyvaults")
-CONFIG["azkv.credentials"] = {"type": "default"}
-CONFIG["azkv.keyvaults"] = []
+CONFIG["azkv"]["credentials"] = {"type": "EnvironmentVariables"}
+CONFIG["azkv"]["keyvaults"] = []
 
 
 class AzKV(App):
@@ -27,6 +28,11 @@ class AzKV(App):
 
         # call sys.exit() on close
         exit_on_close = True
+
+        # register functions to hooks
+        hooks = [
+            ("post_setup", extend_vault_creds),
+        ]
 
         # load additional framework extensions
         extensions = [

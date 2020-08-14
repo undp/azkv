@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import Any, Dict, KeysView, List, Optional
 
 from azure.core.exceptions import (
+    ClientAuthenticationError,
     HttpResponseError,
     ResourceNotFoundError,
     ServiceRequestError,
 )
-from azure.identity import ChainedTokenCredential, DefaultAzureCredential
 from azure.keyvault.secrets import KeyVaultSecret, SecretClient
 
 from cement import Controller, ex
@@ -35,25 +35,16 @@ class Secrets(Controller):
         help: str = "Operations with secrets"  # noqa: A003
 
     def _get_secret(
-        self,
-        credentials: ChainedTokenCredential,
-        kv_url: str,
-        name: str,
-        version: str = None,
+        self, vault: str, name: str, version: str = None,
     ) -> Optional[KeyVaultSecret]:
         """Get a secret from the specific Azure Key Vault.
 
-        Fetches secret from ``kv_url`` with the specified ``name`` and ``version`` using
-        provided ``credentials``.
+        Fetches secret from ``vault`` with the specified ``name`` and ``version``.
 
         Parameters
         ----------
-        credentials
-             An object which can provide an access token for the vault,
-             such as a credential from :mod:`~azure.identity`.
-        kv_url
-            URL of the vault the client will access. This is also called
-            the vault’s “DNS Name”.
+        vault
+            Short name of the Key Vault form config file.
 
         name
             The name of the secret.
@@ -69,19 +60,25 @@ class Secrets(Controller):
             ``None``.
 
         """
+        keyvaults: Dict[str, Any] = self.app.config.get("azkv", "keyvaults")
+
+        self.app.log.info(
+            "Querying vault '{}' through '{}'".format(vault, keyvaults[vault]["url"])
+        )
         try:
             with SecretClient(
-                vault_url=kv_url, credential=credentials
+                vault_url=keyvaults[vault]["url"],
+                credential=self.app.vault_creds[vault],
             ) as secret_client:
                 return secret_client.get_secret(name, version)
         except ResourceNotFoundError:
-            self.app.log.info(
-                "Secret '{}' not found in vault '{}'".format(name, kv_url)
-            )
+            self.app.log.info("Secret '{}' not found in vault '{}'".format(name, vault))
+        except ClientAuthenticationError as e:
+            self.app.log.error("ClientAuthenticationError: {}".format(str(e)))
         except HttpResponseError as e:
-            self.app.log.error("Exception HttpResponseError: {}".format(str(e)))
+            self.app.log.error("HttpResponseError: {}".format(str(e)))
         except ServiceRequestError as e:
-            self.app.log.error("Exception ServiceRequestError: {}".format(str(e)))
+            self.app.log.error("ServiceRequestError: {}".format(str(e)))
         else:
             return None
 
@@ -217,9 +214,6 @@ class Secrets(Controller):
         Key Vaults with the CLI option ``--vault NAME`` mentioned multiple times.
 
         """
-        # get key vault URLS and their short names from config
-        keyvaults: Dict[str, Any] = self.app.config.get("azkv", "keyvaults")
-
         secret_name: str = self.app.pargs.secret_name
 
         file_path_secret: Path = Path(self.app.pargs.file_path_secret)
@@ -236,8 +230,6 @@ class Secrets(Controller):
 
         post_hook: str = self.app.pargs.post_hook
 
-        azure_credential: DefaultAzureCredential
-
         secret: Optional[KeyVaultSecret] = None
 
         secret_output: bytes = ""
@@ -251,18 +243,8 @@ class Secrets(Controller):
                     secret_name, ", ".join(vault_list)
                 )
             )
-            # get Azure credentials from ENV or Manage Identity
-            azure_credential = DefaultAzureCredential()
-
             for vault in vault_list:
-                self.app.log.info(
-                    "Querying vault '{}' (alias: {})".format(
-                        keyvaults[vault]["url"], vault
-                    )
-                )
-                secret = self._get_secret(
-                    azure_credential, keyvaults[vault]["url"], secret_name
-                )
+                secret = self._get_secret(vault, secret_name)
 
                 if secret is not None:
                     break
@@ -376,7 +358,7 @@ class Secrets(Controller):
                         )
 
                     except ValueError as e:
-                        self.app.log.error("Exception ValueError: {}".format(str(e)))
+                        self.app.log.error("ValueError: {}".format(str(e)))
 
                     else:
                         self.app.log.info(
@@ -469,9 +451,6 @@ class Secrets(Controller):
         ``--vault NAME`` mentioned multiple times.
 
         """
-        # get key vault URLS and their short names from config
-        keyvaults: Dict[str, Any] = self.app.config.get("azkv", "keyvaults")
-
         # get secret's name from CLI params
         secret_name: str = self.app.pargs.secret_name
 
@@ -487,19 +466,8 @@ class Secrets(Controller):
 
             output_data: Dict[str, List[KeyVaultSecret]] = {"secrets": []}
 
-            # get Azure credentials from ENV or Manage Identity
-            azure_credential: DefaultAzureCredential = DefaultAzureCredential()
-
             for vault in vault_list:
-                self.app.log.info(
-                    "Querying vault '{}' (alias: {})".format(
-                        keyvaults[vault]["url"], vault
-                    )
-                )
-
-                secret = self._get_secret(
-                    azure_credential, keyvaults[vault]["url"], secret_name
-                )
+                secret = self._get_secret(vault, secret_name)
 
                 if secret is not None:
                     output_data["secrets"].append(
