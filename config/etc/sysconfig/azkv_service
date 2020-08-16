@@ -1,0 +1,16 @@
+##
+#  Environment variables for AzKV service in systemd
+
+# Name of the secret
+AZKV_SECRET_NAME="secret"
+
+# File path to save the secret
+AZKV_SECRET_PATH="/tmp/secret"
+
+# Additional CLI options
+AZKV_ARGS="--b64decode --post-convert pfx-split-pem"
+
+# Command to be run in a shell after secret saved to the file.
+# Executed after all additional conversions an only if the file
+# with secret has been created or updated.
+AZKV_POST_HOOK="--post-hook 'echo Calculate SHA256; sha256sum ${AZKV_SECRET_PATH}*'"

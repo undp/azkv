@@ -1,0 +1,12 @@
+# Systemd config to periodically fetch a secret from
+# multiple Azure Key Vaults and save it locally.
+#
+# See corresponding `.timer` file for schedule.
+#
+[Unit]
+Description=This service fetches Azure Key Vault secret
+
+[Service]
+EnvironmentFile=/etc/sysconfig/azkv_service
+Type=oneshot
+ExecStart=/usr/local/bin/azkv secrets save --name $AZKV_SECRET_NAME --file $AZKV_SECRET_PATH $AZKV_ARGS $AZKV_POST_HOOK

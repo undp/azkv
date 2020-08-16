@@ -1,0 +1,4 @@
+{{ "{:<25} {}".format("NAME", "URL") }}
+{%- for vault in keyvaults %}
+{{ vault.name.ljust(25) }} {{ vault.url }}
+{%- endfor %}
