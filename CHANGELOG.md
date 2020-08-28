@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0rc4 (2020-08-16)
+## 0.1.0rc5 (2020-08-28)
 
 ### New
 
@@ -9,6 +9,8 @@
 * Make credential types configurable. [OK-UNDP]
 
 ### Fix
+
+* Save intermediate certs from PFX to PEM. [OK-UNDP]
 
 * Use full target path when renaming tmp file. [OK-UNDP]
 
