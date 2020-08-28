@@ -390,6 +390,13 @@ class Secrets(Controller):
                             with open(file_path_cert_pem, "wb") as f:
                                 f.write(certificate_pem)
 
+                                for intermediate_cert in additional_certificates:
+                                    intermediate_cert_pem = intermediate_cert.public_bytes(  # noqa: E501
+                                        encoding=serialization.Encoding.PEM
+                                    )
+
+                                    f.write(intermediate_cert_pem)
+
                             file_path_cert_pem.chmod(0o600)
 
                     if post_hook:
