@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "azkv"
-version = "0.1.0rc4"
+version = "0.1.0rc5"
 description = "CLI client for the Azure Key Vault data plane"
 
 authors = ["Oleksiy Kuzmenko <oleksiy.kuzmenko@undp.org>"]
