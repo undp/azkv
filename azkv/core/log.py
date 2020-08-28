@@ -16,4 +16,6 @@ class AzKVLogHandler(ColorLogHandler):
 
         label = "colorlog_custom_format"
 
+        config_section = "log.colorlog"
+
         console_format = "%(asctime)-15s %(levelname)-8s %(namespace)s : %(message)s"
