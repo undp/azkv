@@ -291,7 +291,9 @@ class Secrets(Controller):
                         )
                     )
 
-                    hash_tmp = sha256(secret_output)
+                    hash_tmp = sha256()
+                    with open(file_path_secret_tmp, "rb") as f:
+                        hash_tmp.update(f.read())
                     self.app.log.info(
                         "Temporary file '{}' digest: '{}:{}'".format(
                             file_path_secret_tmp, hash_tmp.name, hash_tmp.hexdigest()
@@ -328,7 +330,7 @@ class Secrets(Controller):
                                 file_path_secret_tmp, file_path_secret
                             )
                         )
-                        file_path_secret_tmp.rename(file_path_secret.name)
+                        file_path_secret_tmp.rename(file_path_secret)
 
                         file_secret_updated = True
 
