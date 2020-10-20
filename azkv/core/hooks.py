@@ -9,6 +9,19 @@ from azure.identity import (
 
 from cement import App
 
+from .version import get_version
+
+
+def log_app_version(app: App) -> None:
+    """Log the version of the app.
+
+    Parameters
+    ----------
+    app
+        Cement Framework application object.
+    """
+    app.log.info("AzKV version {}".format(get_version()))  # noqa: G001
+
 
 def extend_vault_creds(app: App) -> None:
     """Extend app with azure credentials for each vault.
