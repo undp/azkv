@@ -1,0 +1,65 @@
+### AzKV Configuration Settings
+---
+azkv:
+  # Toggle application level debug (does not toggle Cement framework debugging)
+  # debug: false
+
+  # Common credentials to be used for all vaults, unless some specific vaults
+  # have `credentials` property defined that overrides the common one.
+  credentials:
+    # Type of Azure credentials to use for Key Vault access.
+    # Possible values are:
+    # * `EnvironmentVariables` -  uses `EnvironmentCredential` to pickup service principal or user
+    #            credentials from environment variables.
+    #
+    # * `SystemManagedIdentity` - uses `ManagedIdentityCredential` class configured for system-assigned
+    #            managed identity.
+    #
+    # * `UserManagedIdentity` - uses `ManagedIdentityCredential` class configured for user-assigned
+    #            managed identity. Requires `client_id` or will be reduced to `SystemManagedIdentity`
+    type: EnvironmentVariables
+    # ClientID for the user-assigned managed identity; option required only for `type: UserManagedIdentity`
+    # client_id: 2343556b-7153-470a-908a-b3837db7ec88
+
+  # List of Azure Key Vaults to be referenced in AzKV operations
+  keyvaults:
+    # Short name for a Key Vault (used in logs and CLI options)
+    foo-prod-eastus:
+      # URL for the Azure Key Vault API endpoint
+      url: "https://foo-prod-eastus.vault.azure.net/"
+      # Credentials specific to this Key Vault. Supersedes common credentials above.
+      credentials:
+        type: UserManagedIdentity
+        client_id: 2343556b-7153-470a-908a-b3837db7ec88
+    foo-prod-uksouth:
+      url: "https://foo-prod-uksouth.vault.azure.net/"
+      credentials:
+        type: SystemManagedIdentity
+    foo-prod-ukwest:
+      url: "https://foo-prod-ukwest.vault.azure.net/"
+
+# Logging configuration
+log.colorlog:
+  # Whether or not to colorize the log file.
+  # colorize_file_log: false
+
+  # Whether or not to colorize the console log.
+  # colorize_console_log: true
+
+  # Where the log file lives (no log file by default)
+  # file: null
+
+  # The level for which to log.  One of: info, warning, error, fatal, debug
+  # level: INFO
+
+  # Whether or not to log to console
+  # to_console: true
+
+  # Whether or not to rotate the log file when it reaches `max_bytes`
+  # rotate: false
+
+  # Max size in bytes that a log file can grow until it is rotated.
+  # max_bytes: 512000
+
+  # The maximun number of log files to maintain when rotating
+  # max_files: 4
