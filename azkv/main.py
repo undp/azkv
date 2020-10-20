@@ -6,7 +6,7 @@ from .controllers.base import Base
 from .controllers.keyvaults import Keyvaults
 from .controllers.secrets import Secrets
 from .core.exc import AzKVError
-from .core.hooks import extend_vault_creds
+from .core.hooks import extend_vault_creds, log_app_version
 from .core.log import AzKVLogHandler
 
 # configuration defaults
@@ -31,6 +31,7 @@ class AzKV(App):
 
         # register functions to hooks
         hooks = [
+            ("post_setup", log_app_version),
             ("post_setup", extend_vault_creds),
         ]
 
